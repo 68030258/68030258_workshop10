@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "author": "ESP32 Modular Digital Clock Team",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ds1307",
+      "id": "rtc",
+      "top": -140,
+      "left": 280,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ssd1306",
+      "id": "oled",
+      "top": 110,
+      "left": 280,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_mode",
+      "top": 280,
+      "left": -120,
+      "attrs": { "color": "red", "label": "MODE (GPIO18)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_set",
+      "top": 280,
+      "left": -20,
+      "attrs": { "color": "green", "label": "SET/INC (GPIO19)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_alarm",
+      "top": 280,
+      "left": 80,
+      "attrs": { "color": "yellow", "label": "ALARM (GPIO4)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_lap",
+      "top": 280,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "LAP/RST (GPIO5)" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": -140,
+      "left": -90,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "esp:GND.1", "rtc:GND", "black", [ "v0" ] ],
+    [ "esp:5V", "rtc:5V", "red", [ "v0" ] ],
+    [ "esp:21", "rtc:SDA", "yellow", [ "v0" ] ],
+    [ "esp:22", "rtc:SCL", "cyan", [ "v0" ] ],
+    [ "esp:GND.2", "oled:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "oled:VCC", "red", [ "v0" ] ],
+    [ "esp:21", "oled:SDA", "yellow", [ "v0" ] ],
+    [ "esp:22", "oled:SCL", "cyan", [ "v0" ] ],
+    [ "esp:18", "btn_mode:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_mode:2.A", "black", [ "v0" ] ],
+    [ "esp:19", "btn_set:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_set:2.A", "black", [ "v0" ] ],
+    [ "esp:4", "btn_alarm:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_alarm:2.A", "black", [ "v0" ] ],
+    [ "esp:5", "btn_lap:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_lap:2.A", "black", [ "v0" ] ],
+    [ "esp:25", "buzzer:1", "orange", [ "v0" ] ],
+    [ "esp:GND.1", "buzzer:2", "black", [ "v0" ] ]
+  ]
+}
+

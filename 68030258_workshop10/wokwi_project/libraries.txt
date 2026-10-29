@@ -1,0 +1,5 @@
+# Wokwi Library Dependencies
+Adafruit SSD1306
+Adafruit GFX Library
+RTClib
+

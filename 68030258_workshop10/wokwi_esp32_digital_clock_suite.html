@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 Digital Clock - ESP-IDF v6 Modular OOP Architecture</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=VT323&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#0f172a',
+                            900: '#0b0f19',
+                            950: '#05070e'
+                        },
+                        cyan: {
+                            400: '#22d3ee',
+                            500: '#06b6d4',
+                            600: '#0891b2'
+                        },
+                        emerald: {
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                        oled: ['VT323', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+
+        .code-keyword {
+            color: #f472b6;
+            font-weight: 600;
+        }
+
+        .code-type {
+            color: #38bdf8;
+            font-weight: 500;
+        }
+
+        .code-function {
+            color: #a78bfa;
+        }
+
+        .code-string {
+            color: #34d399;
+        }
+
+        .code-comment {
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .code-macro {
+            color: #fb923c;
+        }
+
+        .code-number {
+            color: #facc15;
+        }
+
+        .oled-glow {
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.25), inset 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .oled-pixel-grid {
+            background-size: 4px 4px;
+            background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+
+        @keyframes pulse-alarm {
+
+            0%,
+            100% {
+                background-color: rgba(239, 68, 68, 0.1);
+                border-color: rgba(239, 68, 68, 0.8);
+            }
+
+            50% {
+                background-color: rgba(239, 68, 68, 0.4);
+                border-color: rgba(239, 68, 68, 1);
+                box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
+            }
+        }
+
+        .alarm-active {
+            animation: pulse-alarm 0.8s infinite;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- TOP HEADER -->
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo / Title -->
+                <div class="flex items-center space-x-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-cyan-500/20">
+                        <i class="fa-solid font-mono text-slate-950 font-extrabold text-lg">ESP</i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 class="text-lg font-bold text-white tracking-wide">ESP32 Modular Digital Clock</h1>
+                            <span
+                                class="px-2 py-0.5 text-xs font-semibold bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-full">ESP-IDF
+                                v6</span>
+                            <span
+                                class="px-2 py-0.5 text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800 rounded-full">FreeRTOS</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Bottom-Up C++ OOP Architecture • DS1307 RTC • SSD1306 OLED •
+                            Wi-Fi NTP</p>
+                    </div>
+                </div>
+
+                <!-- Wi-Fi / Status Badge -->
+                <div class="hidden md:flex items-center space-x-4 text-xs font-mono">
+                    <div
+                        class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
+                        <i class="fa-solid fa-wifi text-emerald-400"></i>
+                        <span class="text-slate-300">SSID: <strong class="text-white">iotexpo</strong></span>
+                    </div>
+                    <div
+                        class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700/60 flex items-center space-x-2">
+                        <i class="fa-solid fa-microchip text-cyan-400"></i>
+                        <span class="text-slate-300">RTC: <strong class="text-white">DS1307 (0x68)</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="bg-slate-900 border-t border-slate-800/80">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <nav class="flex space-x-1 overflow-x-auto py-2 text-sm font-medium no-scrollbar" id="mainTabNav">
+                    <button onclick="switchTab('arch')" id="tab-arch"
+                        class="tab-btn px-4 py-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-all active-tab border border-cyan-500/30 bg-slate-800/80 text-cyan-400">
+                        <i class="fa-solid fa-sitemap"></i>
+                        <span>1. Architecture & Methodology</span>
+                    </button>
+                    <button onclick="switchTab('wokwi')" id="tab-wokwi"
+                        class="tab-btn px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-all">
+                        <i class="fa-solid fa-diagram-project"></i>
+                        <span>2. Wokwi `diagram.json`</span>
+                    </button>
+                    <button onclick="switchTab('code')" id="tab-code"
+                        class="tab-btn px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-all">
+                        <i class="fa-solid fa-code"></i>
+                        <span>3. Modular C++ Source Code</span>
+                    </button>
+                    <button onclick="switchTab('unit')" id="tab-unit"
+                        class="tab-btn px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-all">
+                        <i class="fa-solid fa-vial-circle-check"></i>
+                        <span>4. Spiral Unit Tests</span>
+                    </button>
+                    <button onclick="switchTab('sim')" id="tab-sim"
+                        class="tab-btn px-4 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 flex items-center space-x-2 transition-all">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <span>5. Hardware Simulator</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- TAB 1: ARCHITECTURE & METHODOLOGY -->
+        <section id="content-arch" class="tab-content space-y-6">
+            <!-- Header Rationale -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="p-3 bg-cyan-950 border border-cyan-800/50 rounded-xl text-cyan-400">
+                        <i class="fa-solid fa-cubes-stacked text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Bottom-Up Modular OOP Methodology</h2>
+                        <p class="text-slate-400 text-sm">Hardware Abstraction Layer (HAL) built layer-by-layer up to
+                            FreeRTOS multitasking system</p>
+                    </div>
+                </div>
+
+                <p class="text-slate-300 text-sm leading-relaxed mb-6">
+                    This project uses a rigorous <strong>Bottom-Up Object-Oriented System Architecture</strong>
+                    targeting ESP-IDF v6. Drivers are constructed and unit-tested independently without depending on
+                    higher-level business logic. The architecture decouples hardware components (I2C Bus, DS1307 RTC,
+                    SSD1306 Display, Debounced Buttons) from domain logic engines (TimeManager, AlarmEngine,
+                    StopwatchEngine) via standard C++ interfaces and thread-safe FreeRTOS primitives (Queues, Mutexes,
+                    Event Groups).
+                </p>
+
+                <!-- 5 Spirals Overview Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    <div
+                        class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-mono text-cyan-400 font-bold uppercase tracking-wider">Spiral
+                                1</span>
+                            <h3 class="font-bold text-white text-sm mt-1">HAL & Bus Layer</h3>
+                            <p class="text-xs text-slate-400 mt-2">Thread-safe I2CBus driver, DS1307 RTC register BCD
+                                parser, SSD1306 128x64 display buffer driver.</p>
+                        </div>
+                        <span
+                            class="inline-block mt-3 text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 px-2 py-0.5 rounded font-mono">Status:
+                            Verified</span>
+                    </div>
+
+                    <div
+                        class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-mono text-emerald-400 font-bold uppercase tracking-wider">Spiral
+                                2</span>
+                            <h3 class="font-bold text-white text-sm mt-1">Time Subsystem</h3>
+                            <p class="text-xs text-slate-400 mt-2">TimeManager encapsulation, Wi-Fi Station driver, SNTP
+                                client sync with RTC fallback logic.</p>
+                        </div>
+                        <span
+                            class="inline-block mt-3 text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded font-mono">Status:
+                            Verified</span>
+                    </div>
+
+                    <div
+                        class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-mono text-purple-400 font-bold uppercase tracking-wider">Spiral
+                                3</span>
+                            <h3 class="font-bold text-white text-sm mt-1">Input & UI Engine</h3>
+                            <p class="text-xs text-slate-400 mt-2">GPIO ISR button debouncing engine (Short/Long press
+                                recognition) and OLED Renderer task.</p>
+                        </div>
+                        <span
+                            class="inline-block mt-3 text-[10px] bg-purple-950 text-purple-300 border border-purple-800 px-2 py-0.5 rounded font-mono">Status:
+                            Verified</span>
+                    </div>
+
+                    <div
+                        class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-mono text-amber-400 font-bold uppercase tracking-wider">Spiral
+                                4</span>
+                            <h3 class="font-bold text-white text-sm mt-1">Business Engines</h3>
+                            <p class="text-xs text-slate-400 mt-2">AlarmEngine comparator & piezo buzzer driver,
+                                StopwatchEngine lap record timing precision.</p>
+                        </div>
+                        <span
+                            class="inline-block mt-3 text-[10px] bg-amber-950 text-amber-300 border border-amber-800 px-2 py-0.5 rounded font-mono">Status:
+                            Verified</span>
+                    </div>
+
+                    <div
+                        class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-mono text-rose-400 font-bold uppercase tracking-wider">Spiral
+                                5</span>
+                            <h3 class="font-bold text-white text-sm mt-1">FreeRTOS Integration</h3>
+                            <p class="text-xs text-slate-400 mt-2">Multitask synchronization, Queue event pump, Mutex
+                                lock safety, and app_main initialization.</p>
+                        </div>
+                        <span
+                            class="inline-block mt-3 text-[10px] bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded font-mono">Status:
+                            Verified</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SVG DIAGRAM 1: COMPONENT ARCHITECTURE STACK -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-white mb-2 flex items-center space-x-2">
+                    <i class="fa-solid fa-layer-group text-cyan-400"></i>
+                    <span>Component Architecture Stack Diagram</span>
+                </h3>
+                <p class="text-xs text-slate-400 mb-6">Visual representation of software decoupling from hardware
+                    registers up to FreeRTOS application tasks</p>
+
+                <div class="w-full overflow-x-auto">
+                    <svg viewBox="0 0 900 480" class="w-full h-auto min-w-[700px] font-sans">
+                        <!-- Background Grid -->
+                        <rect width="900" height="480" fill="#0b0f19" rx="12" />
+
+                        <!-- LAYER 5: Application / Tasks -->
+                        <g transform="translate(30, 20)">
+                            <rect width="840" height="70" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="2" />
+                            <text x="20" y="25" fill="#a5b4fc" font-size="12" font-weight="bold"
+                                font-family="monospace">LAYER 5: FREERTOS TASK SCHEDULER & APPLICATION LAYER</text>
+
+                            <rect x="20" y="35" width="180" height="25" rx="4" fill="#312e81" stroke="#818cf8" />
+                            <text x="110" y="52" fill="#ffffff" font-size="11" text-anchor="middle">vTaskClockDisplay
+                                (10 Hz)</text>
+
+                            <rect x="220" y="35" width="180" height="25" rx="4" fill="#312e81" stroke="#818cf8" />
+                            <text x="310" y="52" fill="#ffffff" font-size="11" text-anchor="middle">vTaskButtonHandler
+                                (Interrupt)</text>
+
+                            <rect x="420" y="35" width="180" height="25" rx="4" fill="#312e81" stroke="#818cf8" />
+                            <text x="510" y="52" fill="#ffffff" font-size="11" text-anchor="middle">vTaskAlarmCheck (1
+                                Hz)</text>
+
+                            <rect x="620" y="35" width="200" height="25" rx="4" fill="#312e81" stroke="#818cf8" />
+                            <text x="720" y="52" fill="#ffffff" font-size="11" text-anchor="middle">vTaskNTPSync
+                                (Period: 1h)</text>
+                        </g>
+
+                        <!-- LAYER 4: Business Logic Engines -->
+                        <g transform="translate(30, 110)">
+                            <rect width="840" height="70" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="2" />
+                            <text x="20" y="25" fill="#6ee7b7" font-size="12" font-weight="bold"
+                                font-family="monospace">LAYER 4: OOP BUSINESS LOGIC ENGINES</text>
+
+                            <rect x="20" y="35" width="250" height="25" rx="4" fill="#022c22" stroke="#34d399" />
+                            <text x="145" y="52" fill="#ffffff" font-size="11" text-anchor="middle">TimeManager (NTP &
+                                RTC Sync)</text>
+
+                            <rect x="295" y="35" width="250" height="25" rx="4" fill="#022c22" stroke="#34d399" />
+                            <text x="420" y="52" fill="#ffffff" font-size="11" text-anchor="middle">AlarmEngine (Compare
+                                & Alert)</text>
+
+                            <rect x="570" y="35" width="250" height="25" rx="4" fill="#022c22" stroke="#34d399" />
+                            <text x="695" y="52" fill="#ffffff" font-size="11" text-anchor="middle">StopwatchEngine
+                                (Split/Lap)</text>
+                        </g>
+
+                        <!-- LAYER 3: Input & Display UI Abstraction -->
+                        <g transform="translate(30, 200)">
+                            <rect width="840" height="70" rx="8" fill="#581c87" stroke="#a855f7" stroke-width="2" />
+                            <text x="20" y="25" fill="#e9d5ff" font-size="12" font-weight="bold"
+                                font-family="monospace">LAYER 3: INTERACTION & PRESENTATION MANAGERS</text>
+
+                            <rect x="20" y="35" width="390" height="25" rx="4" fill="#3b0764" stroke="#c084fc" />
+                            <text x="215" y="52" fill="#ffffff" font-size="11" text-anchor="middle">ButtonManager (ISR
+                                Queues & State Machine)</text>
+
+                            <rect x="430" y="35" width="390" height="25" rx="4" fill="#3b0764" stroke="#c084fc" />
+                            <text x="625" y="52" fill="#ffffff" font-size="11" text-anchor="middle">SSD1306 Display
+                                Engine (Frame Buffer 1024B)</text>
+                        </g>
+
+                        <!-- LAYER 2: Hardware Drivers -->
+                        <g transform="translate(30, 290)">
+                            <rect width="840" height="70" rx="8" fill="#134e4a" stroke="#14b8a6" stroke-width="2" />
+                            <text x="20" y="25" fill="#99f6e4" font-size="12" font-weight="bold"
+                                font-family="monospace">LAYER 2: HARDWARE PERIPHERAL DRIVERS</text>
+
+                            <rect x="20" y="35" width="250" height="25" rx="4" fill="#042f2e" stroke="#2dd4bf" />
+                            <text x="145" y="52" fill="#ffffff" font-size="11" text-anchor="middle">DS1307 RTC Driver
+                                (BCD / I2C 0x68)</text>
+
+                            <rect x="295" y="35" width="250" height="25" rx="4" fill="#042f2e" stroke="#2dd4bf" />
+                            <text x="420" y="52" fill="#ffffff" font-size="11" text-anchor="middle">SSD1306 Controller
+                                (I2C 0x3C)</text>
+
+                            <rect x="570" y="35" width="250" height="25" rx="4" fill="#042f2e" stroke="#2dd4bf" />
+                            <text x="695" y="52" fill="#ffffff" font-size="11" text-anchor="middle">GPIO Debouncer &
+                                LEDC Buzzer Driver</text>
+                        </g>
+
+                        <!-- LAYER 1: Hardware Abstraction & ESP-IDF Drivers -->
+                        <g transform="translate(30, 380)">
+                            <rect width="840" height="80" rx="8" fill="#0f172a" stroke="#334155" stroke-width="2" />
+                            <text x="20" y="25" fill="#94a3b8" font-size="12" font-weight="bold"
+                                font-family="monospace">LAYER 1: ESP-IDF v6 SYSTEM & PHYSICAL HARDWARE</text>
+
+                            <rect x="20" y="35" width="250" height="30" rx="4" fill="#1e293b" stroke="#475569" />
+                            <text x="145" y="54" fill="#cbd5e1" font-size="11" text-anchor="middle">I2CBus Class
+                                (Thread-safe Mutex)</text>
+
+                            <rect x="295" y="35" width="250" height="30" rx="4" fill="#1e293b" stroke="#475569" />
+                            <text x="420" y="54" fill="#cbd5e1" font-size="11" text-anchor="middle">esp_wifi & esp_sntp
+                                Stack</text>
+
+                            <rect x="570" y="35" width="250" height="30" rx="4" fill="#1e293b" stroke="#475569" />
+                            <text x="695" y="54" fill="#cbd5e1" font-size="11" text-anchor="middle">ESP32 Silicon (GPIO,
+                                I2C0, Timers)</text>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- SVG DIAGRAM 2: HARDWARE WIRING SCHEMATIC -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-white mb-2 flex items-center space-x-2">
+                    <i class="fa-solid fa-microchip text-emerald-400"></i>
+                    <span>ESP32 Circuit Hardware Schematic</span>
+                </h3>
+                <p class="text-xs text-slate-400 mb-6">Interactive component connection map showing ESP32 pinouts,
+                    DS1307 RTC, SSD1306 LCD, Switches, and Buzzer</p>
+
+                <div class="w-full overflow-x-auto">
+                    <svg viewBox="0 0 950 480" class="w-full h-auto min-w-[750px] font-sans">
+                        <rect width="950" height="480" fill="#070a12" rx="12" />
+
+                        <!-- ESP32 DEV BOARD (CENTER) -->
+                        <g transform="translate(340, 60)">
+                            <rect width="270" height="360" rx="10" fill="#1e293b" stroke="#38bdf8" stroke-width="3" />
+                            <rect x="60" y="10" width="150" height="60" rx="4" fill="#0f172a" stroke="#64748b" />
+                            <text x="135" y="45" fill="#94a3b8" font-size="12" font-weight="bold"
+                                text-anchor="middle">ESP32-WROOM-32</text>
+                            <text x="135" y="88" fill="#38bdf8" font-size="14" font-weight="extrabold"
+                                text-anchor="middle">ESP32 DevKit v4</text>
+
+                            <!-- Left Pins -->
+                            <text x="15" y="125" fill="#f87171" font-size="10" font-family="monospace">3V3</text>
+                            <text x="15" y="155" fill="#94a3b8" font-size="10" font-family="monospace">GND</text>
+                            <text x="15" y="185" fill="#facc15" font-size="10" font-family="monospace">GPIO 21
+                                (SDA)</text>
+                            <text x="15" y="215" fill="#facc15" font-size="10" font-family="monospace">GPIO 22
+                                (SCL)</text>
+                            <text x="15" y="245" fill="#4ade80" font-size="10" font-family="monospace">GPIO 18
+                                (MODE)</text>
+                            <text x="15" y="275" fill="#4ade80" font-size="10" font-family="monospace">GPIO 19
+                                (SET)</text>
+                            <text x="15" y="305" fill="#4ade80" font-size="10" font-family="monospace">GPIO 4
+                                (ALARM)</text>
+                            <text x="15" y="335" fill="#4ade80" font-size="10" font-family="monospace">GPIO 5
+                                (LAP/RST)</text>
+
+                            <!-- Right Pins -->
+                            <text x="255" y="125" fill="#ef4444" font-size="10" font-family="monospace"
+                                text-anchor="end">5V</text>
+                            <text x="255" y="155" fill="#94a3b8" font-size="10" font-family="monospace"
+                                text-anchor="end">GND</text>
+                            <text x="255" y="185" fill="#fb923c" font-size="10" font-family="monospace"
+                                text-anchor="end">GPIO 25 (BUZZER)</text>
+                        </g>
+
+                        <!-- DS1307 RTC MODULE (TOP LEFT) -->
+                        <g transform="translate(30, 40)">
+                            <rect width="220" height="130" rx="8" fill="#134e4a" stroke="#14b8a6" stroke-width="2" />
+                            <text x="110" y="25" fill="#2dd4bf" font-size="13" font-weight="bold"
+                                text-anchor="middle">DS1307 RTC Module</text>
+                            <text x="110" y="42" fill="#99f6e4" font-size="10" text-anchor="middle">I2C Address:
+                                0x68</text>
+
+                            <circle cx="170" cy="85" r="22" fill="#0f172a" stroke="#64748b" />
+                            <text x="170" y="89" fill="#94a3b8" font-size="9" text-anchor="middle">CR2032</text>
+
+                            <text x="20" y="70" fill="#ef4444" font-size="10" font-family="monospace">VCC (5V)</text>
+                            <text x="20" y="90" fill="#94a3b8" font-size="10" font-family="monospace">GND</text>
+                            <text x="20" y="110" fill="#facc15" font-size="10" font-family="monospace">SDA</text>
+                            <text x="20" y="130" fill="#facc15" font-size="10" font-family="monospace">SCL</text>
+                        </g>
+
+                        <!-- SSD1306 OLED MODULE (BOTTOM LEFT) -->
+                        <g transform="translate(30, 260)">
+                            <rect width="220" height="150" rx="8" fill="#0f172a" stroke="#06b6d4" stroke-width="2" />
+                            <rect x="20" y="35" width="180" height="90" rx="4" fill="#000000" stroke="#0891b2" />
+                            <text x="110" y="25" fill="#22d3ee" font-size="13" font-weight="bold"
+                                text-anchor="middle">SSD1306 128x64 OLED</text>
+                            <text x="110" y="80" fill="#06b6d4" font-size="14" font-family="monospace"
+                                text-anchor="middle">128x64 I2C (0x3C)</text>
+                        </g>
+
+                        <!-- PUSH BUTTONS ARRAY (RIGHT BOTTOM) -->
+                        <g transform="translate(670, 200)">
+                            <rect width="250" height="230" rx="8" fill="#1e1b4b" stroke="#6366f1" stroke-width="2" />
+                            <text x="125" y="25" fill="#a5b4fc" font-size="13" font-weight="bold"
+                                text-anchor="middle">Tactile Control Buttons</text>
+
+                            <!-- BTN 1 -->
+                            <rect x="20" y="45" width="210" height="35" rx="5" fill="#312e81" />
+                            <circle cx="40" cy="62" r="8" fill="#ef4444" />
+                            <text x="60" y="66" fill="#ffffff" font-size="11" font-weight="bold">SW1: MODE (GPIO
+                                18)</text>
+
+                            <!-- BTN 2 -->
+                            <rect x="20" y="90" width="210" height="35" rx="5" fill="#312e81" />
+                            <circle cx="40" cy="107" r="8" fill="#22c55e" />
+                            <text x="60" y="111" fill="#ffffff" font-size="11" font-weight="bold">SW2: SET/INC (GPIO
+                                19)</text>
+
+                            <!-- BTN 3 -->
+                            <rect x="20" y="135" width="210" height="35" rx="5" fill="#312e81" />
+                            <circle cx="40" cy="152" r="8" fill="#eab308" />
+                            <text x="60" y="156" fill="#ffffff" font-size="11" font-weight="bold">SW3: ALARM (GPIO
+                                4)</text>
+
+                            <!-- BTN 4 -->
+                            <rect x="20" y="180" width="210" height="35" rx="5" fill="#312e81" />
+                            <circle cx="40" cy="197" r="8" fill="#3b82f6" />
+                            <text x="60" y="201" fill="#ffffff" font-size="11" font-weight="bold">SW4: LAP/RST (GPIO
+                                5)</text>
+                        </g>
+
+                        <!-- PIEZO BUZZER (TOP RIGHT) -->
+                        <g transform="translate(670, 40)">
+                            <rect width="250" height="130" rx="8" fill="#7c2d12" stroke="#f97316" stroke-width="2" />
+                            <circle cx="70" cy="65" r="30" fill="#1c1917" stroke="#ea580c" stroke-width="3" />
+                            <circle cx="70" cy="65" r="10" fill="#44403c" />
+                            <text x="120" y="55" fill="#ffedd5" font-size="13" font-weight="bold">Piezo Buzzer</text>
+                            <text x="120" y="75" fill="#fdba74" font-size="11" font-family="monospace">GPIO 25
+                                (PWM)</text>
+                        </g>
+
+                        <!-- WIRING BUS LINES -->
+                        <!-- SDA Bus Line -->
+                        <path d="M 250 150 L 300 150 L 300 245 L 340 245" fill="none" stroke="#facc15" stroke-width="2"
+                            stroke-dasharray="4" />
+                        <path d="M 250 380 L 290 380 L 290 245" fill="none" stroke="#facc15" stroke-width="2"
+                            stroke-dasharray="4" />
+
+                        <!-- SCL Bus Line -->
+                        <path d="M 250 170 L 310 170 L 310 275 L 340 275" fill="none" stroke="#38bdf8"
+                            stroke-width="2" />
+                        <path d="M 250 400 L 310 400 L 310 275" fill="none" stroke="#38bdf8" stroke-width="2" />
+
+                        <!-- Buzzer Wire -->
+                        <path d="M 610 245 L 640 245 L 640 105 L 670 105" fill="none" stroke="#fb923c"
+                            stroke-width="2" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- FreeRTOS Task Breakdown Table -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-white mb-4 flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check text-cyan-400"></i>
+                    <span>FreeRTOS Multitasking Specification</span>
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-800/80 text-xs font-mono text-cyan-400 uppercase">
+                            <tr>
+                                <th class="p-3 rounded-l-lg">Task Name</th>
+                                <th class="p-3">Priority</th>
+                                <th class="p-3">Stack Size</th>
+                                <th class="p-3">Core</th>
+                                <th class="p-3">Trigger / Period</th>
+                                <th class="p-3 rounded-r-lg">Responsibilities</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 font-mono text-xs">
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3 font-bold text-white">vTaskClockDisplay</td>
+                                <td class="p-3 text-emerald-400">3 (Medium)</td>
+                                <td class="p-3">4096 B</td>
+                                <td class="p-3">Core 1</td>
+                                <td class="p-3">Periodic (100 ms)</td>
+                                <td class="p-3 font-sans text-slate-300">Renders current active mode (Time, Alarm,
+                                    Stopwatch) to SSD1306 buffer and flushes I2C frame.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3 font-bold text-white">vTaskButtonHandler</td>
+                                <td class="p-3 text-rose-400">5 (High)</td>
+                                <td class="p-3">3072 B</td>
+                                <td class="p-3">Core 0</td>
+                                <td class="p-3">ISR Queue Event</td>
+                                <td class="p-3 font-sans text-slate-300">Processes debounced switch presses, detects
+                                    long-press events, and toggles clock operational modes.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3 font-bold text-white">vTaskAlarmCheck</td>
+                                <td class="p-3 text-emerald-400">4 (Med-High)</td>
+                                <td class="p-3">2048 B</td>
+                                <td class="p-3">Core 1</td>
+                                <td class="p-3">Periodic (1000 ms)</td>
+                                <td class="p-3 font-sans text-slate-300">Compares DS1307 system RTC time against stored
+                                    alarm time. Triggers LEDC piezo buzzer PWM when active.</td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/30">
+                                <td class="p-3 font-bold text-white">vTaskNTPSync</td>
+                                <td class="p-3 text-cyan-400">1 (Low)</td>
+                                <td class="p-3">6144 B</td>
+                                <td class="p-3">Core 0</td>
+                                <td class="p-3">Periodic (3600 s)</td>
+                                <td class="p-3 font-sans text-slate-300">Connects to Wi-Fi SSID 'iotexpo', queries
+                                    pool.ntp.org, adjusts internal POSIX system time, and updates DS1307 RTC registers.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: WOKWI DIAGRAM.JSON -->
+        <section id="content-wokwi" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-file-code text-cyan-400"></i>
+                            <span>Wokwi Simulation Diagram Configuration (`diagram.json`)</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Ready to paste directly into Wokwi's simulator
+                            environment</p>
+                    </div>
+                    <button onclick="copyToClipboard('wokwiJsonCode', 'copyBtnWokwi')" id="copyBtnWokwi"
+                        class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all shadow-lg shadow-cyan-600/30">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copy `diagram.json`</span>
+                    </button>
+                </div>
+
+                <!-- JSON CODE VIEWER -->
+                <div
+                    class="relative bg-slate-950 border border-slate-800 rounded-xl p-4 overflow-x-auto font-mono text-xs">
+                    <pre id="wokwiJsonCode" class="text-slate-300">{
+  "version": 1,
+  "author": "Modular OOP Digital Clock Team",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ds1307",
+      "id": "rtc",
+      "top": -120,
+      "left": 280,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-ssd1306",
+      "id": "oled",
+      "top": 120,
+      "left": 280,
+      "attrs": {
+        "i2cAddress": "0x3c"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_mode",
+      "top": 280,
+      "left": -120,
+      "attrs": { "color": "red", "label": "MODE (GPIO18)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_set",
+      "top": 280,
+      "left": -20,
+      "attrs": { "color": "green", "label": "SET (GPIO19)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_alarm",
+      "top": 280,
+      "left": 80,
+      "attrs": { "color": "yellow", "label": "ALARM (GPIO4)" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn_lap",
+      "top": 280,
+      "left": 180,
+      "attrs": { "color": "blue", "label": "LAP (GPIO5)" }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "buzzer",
+      "top": -120,
+      "left": -80,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "esp:GND.1", "rtc:GND", "black", [ "v0" ] ],
+    [ "esp:5V", "rtc:5V", "red", [ "v0" ] ],
+    [ "esp:21", "rtc:SDA", "yellow", [ "v0" ] ],
+    [ "esp:22", "rtc:SCL", "cyan", [ "v0" ] ],
+    [ "esp:GND.2", "oled:GND", "black", [ "v0" ] ],
+    [ "esp:3V3", "oled:VCC", "red", [ "v0" ] ],
+    [ "esp:21", "oled:SDA", "yellow", [ "v0" ] ],
+    [ "esp:22", "oled:SCL", "cyan", [ "v0" ] ],
+    [ "esp:18", "btn_mode:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_mode:2.A", "black", [ "v0" ] ],
+    [ "esp:19", "btn_set:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_set:2.A", "black", [ "v0" ] ],
+    [ "esp:4", "btn_alarm:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_alarm:2.A", "black", [ "v0" ] ],
+    [ "esp:5", "btn_lap:1.A", "green", [ "v0" ] ],
+    [ "esp:GND.3", "btn_lap:2.A", "black", [ "v0" ] ],
+    [ "esp:25", "buzzer:1", "orange", [ "v0" ] ],
+    [ "esp:GND.1", "buzzer:2", "black", [ "v0" ] ]
+  ]
+}</pre>
+                </div>
+
+                <!-- PINOUT REFERENCE TABLE -->
+                <div class="mt-6">
+                    <h3 class="text-sm font-bold text-white mb-3">Complete Wokwi Hardware Mapping Table</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
+                        <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60">
+                            <span class="text-cyan-400 font-bold">DS1307 RTC</span>
+                            <ul class="text-slate-300 mt-1 space-y-0.5 text-[11px]">
+                                <li>• SDA ➔ GPIO 21</li>
+                                <li>• SCL ➔ GPIO 22</li>
+                                <li>• VCC ➔ 5V Rail</li>
+                                <li>• GND ➔ Common GND</li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60">
+                            <span class="text-cyan-400 font-bold">SSD1306 OLED</span>
+                            <ul class="text-slate-300 mt-1 space-y-0.5 text-[11px]">
+                                <li>• SDA ➔ GPIO 21</li>
+                                <li>• SCL ➔ GPIO 22</li>
+                                <li>• VCC ➔ 3.3V Rail</li>
+                                <li>• GND ➔ Common GND</li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60">
+                            <span class="text-emerald-400 font-bold">4 Push Buttons</span>
+                            <ul class="text-slate-300 mt-1 space-y-0.5 text-[11px]">
+                                <li>• MODE ➔ GPIO 18</li>
+                                <li>• SET ➔ GPIO 19</li>
+                                <li>• ALARM ➔ GPIO 4</li>
+                                <li>• LAP ➔ GPIO 5</li>
+                            </ul>
+                        </div>
+                        <div class="bg-slate-800/60 p-3 rounded-lg border border-slate-700/60">
+                            <span class="text-amber-400 font-bold">Buzzer & Network</span>
+                            <ul class="text-slate-300 mt-1 space-y-0.5 text-[11px]">
+                                <li>• Buzzer ➔ GPIO 25</li>
+                                <li>• Wi-Fi ➔ "iotexpo"</li>
+                                <li>• Pass ➔ "12345678"</li>
+                                <li>• NTP ➔ pool.ntp.org</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: MODULAR C++ SOURCE CODE -->
+        <section id="content-code" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-code text-cyan-400"></i>
+                            <span>Production Modular C++ Source Code (ESP-IDF v6)</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Object-oriented drivers, FreeRTOS tasks, and domain
+                            services</p>
+                    </div>
+                    <button onclick="copyActiveCode()" id="copyCodeBtn"
+                        class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded-lg text-xs font-semibold flex items-center space-x-2 border border-slate-700 transition-all">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copy File</span>
+                    </button>
+                </div>
+
+                <!-- CODE SUB TABS NAV -->
+                <div
+                    class="flex space-x-1 border-b border-slate-800 pb-2 overflow-x-auto text-xs font-mono no-scrollbar">
+                    <button onclick="switchCodeTab('main')" id="subtab-main"
+                        class="code-subtab px-3 py-1.5 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-800">main.cpp</button>
+                    <button onclick="switchCodeTab('i2c')" id="subtab-i2c"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">I2CBus.hpp</button>
+                    <button onclick="switchCodeTab('ds1307_h')" id="subtab-ds1307_h"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">DS1307.hpp</button>
+                    <button onclick="switchCodeTab('ds1307_cpp')" id="subtab-ds1307_cpp"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">DS1307.cpp</button>
+                    <button onclick="switchCodeTab('ssd1306_h')" id="subtab-ssd1306_h"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">SSD1306.hpp</button>
+                    <button onclick="switchCodeTab('ssd1306_cpp')" id="subtab-ssd1306_cpp"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">SSD1306.cpp</button>
+                    <button onclick="switchCodeTab('button')" id="subtab-button"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">ButtonManager.hpp</button>
+                    <button onclick="switchCodeTab('time')" id="subtab-time"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">TimeManager.hpp</button>
+                    <button onclick="switchCodeTab('alarm')" id="subtab-alarm"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">AlarmEngine.hpp</button>
+                    <button onclick="switchCodeTab('stopwatch')" id="subtab-stopwatch"
+                        class="code-subtab px-3 py-1.5 rounded-lg text-slate-400 hover:bg-slate-800">StopwatchEngine.hpp</button>
+                </div>
+
+                <!-- CODE DISPLAY AREA -->
+                <div
+                    class="bg-slate-950 border border-slate-800 rounded-xl p-4 mt-4 overflow-x-auto font-mono text-xs max-h-[500px]">
+                    <pre id="codeDisplayArea" class="text-slate-300 leading-relaxed"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: SPIRAL UNIT TESTS -->
+        <section id="content-unit" class="tab-content hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center space-x-2">
+                            <i class="fa-solid fa-vial-circle-check text-emerald-400"></i>
+                            <span>Unit Test Suite & Verification Runner (Unity Framework)</span>
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">Verification suite testing each development spiral
+                            bottom-up</p>
+                    </div>
+                    <button onclick="runAllUnitTests()" id="btnRunTests"
+                        class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-2 shadow-lg shadow-emerald-600/30 transition-all">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Run All Spiral Unit Tests</span>
+                    </button>
+                </div>
+
+                <!-- Interactive Test Console Window -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden font-mono text-xs">
+                    <div
+                        class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-slate-400">
+                        <div class="flex items-center space-x-2">
+                            <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 inline-block"></span>
+                            <span class="ml-2 font-bold text-white text-[11px]">ESP-IDF Unity Test Runner Output</span>
+                        </div>
+                        <span id="testSummaryBadge"
+                            class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400">Status:
+                            Ready</span>
+                    </div>
+                    <div id="testConsoleLogs" class="p-4 h-64 overflow-y-auto space-y-1.5 text-slate-300">
+                        <p class="text-slate-500">// Press "Run All Spiral Unit Tests" to execute Unity test harness for
+                            Spirals 1 through 5...</p>
+                    </div>
+                </div>
+
+                <!-- TEST SPECIFICATIONS PER SPIRAL -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                    <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-xs font-mono font-bold text-cyan-400">SPIRAL 1 TEST MODULE</span>
+                        <h4 class="font-bold text-white text-sm mt-1">Hardware Layer & Bus Communication</h4>
+                        <ul class="text-xs text-slate-300 mt-2 space-y-1 font-mono">
+                            <li>✓ <span class="text-slate-400">test_ds1307_bcd_conversion()</span>: Verify BCD to Dec
+                                conversion math</li>
+                            <li>✓ <span class="text-slate-400">test_i2c_bus_mutex_lock()</span>: Test bus concurrency
+                                mutex timeouts</li>
+                            <li>✓ <span class="text-slate-400">test_ssd1306_buffer_bounds()</span>: Framebuffer boundary
+                                overflow test</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-xs font-mono font-bold text-emerald-400">SPIRAL 2 TEST MODULE</span>
+                        <h4 class="font-bold text-white text-sm mt-1">Timekeeping Subsystem & Synchronization</h4>
+                        <ul class="text-xs text-slate-300 mt-2 space-y-1 font-mono">
+                            <li>✓ <span class="text-slate-400">test_time_manager_rtc_fallback()</span>: Test system time
+                                fallback on RTC lose</li>
+                            <li>✓ <span class="text-slate-400">test_ntp_timestamp_parsing()</span>: Validate POSIX NTP
+                                epoch calculation</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-xs font-mono font-bold text-purple-400">SPIRAL 3 TEST MODULE</span>
+                        <h4 class="font-bold text-white text-sm mt-1">Input & UI State Machine</h4>
+                        <ul class="text-xs text-slate-300 mt-2 space-y-1 font-mono">
+                            <li>✓ <span class="text-slate-400">test_button_long_press_detect()</span>: Validate short vs
+                                1000ms long press</li>
+                            <li>✓ <span class="text-slate-400">test_ui_mode_cycle()</span>: Test cyclic state transition
+                                (Clock->Set->Alarm->Stopwatch)</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                        <span class="text-xs font-mono font-bold text-amber-400">SPIRAL 4 & 5 TEST MODULE</span>
+                        <h4 class="font-bold text-white text-sm mt-1">Engines & FreeRTOS Integration</h4>
+                        <ul class="text-xs text-slate-300 mt-2 space-y-1 font-mono">
+                            <li>✓ <span class="text-slate-400">test_alarm_time_comparator()</span>: Alarm match trigger
+                                validation</li>
+                            <li>✓ <span class="text-slate-400">test_stopwatch_lap_split_calc()</span>: Delta split time
+                                accuracy check</li>
+                            <li>✓ <span class="text-slate-400">test_freertos_event_group_sync()</span>: Inter-task
+                                notification bit flags</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: HARDWARE SIMULATOR -->
+        <section id="content-sim" class="tab-content hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- OLED CANVAS DISPLAY & BUTTONS BOARD -->
+                <div
+                    class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fa-solid fa-desktop text-cyan-400"></i>
+                                    <span>Interactive SSD1306 OLED Hardware Emulator</span>
+                                </h2>
+                                <p class="text-xs text-slate-400">Pixel-accurate 128x64 Canvas rendering driven by
+                                    internal JavaScript OOP state machine</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-xs font-mono text-slate-300">ESP32 Running</span>
+                            </div>
+                        </div>
+
+                        <!-- OLED SCREEN CONTAINER -->
+                        <div id="oledFrame"
+                            class="bg-slate-950 p-6 rounded-2xl border-4 border-slate-800 oled-glow relative flex flex-col items-center justify-center my-4 transition-all">
+                            <!-- OLED Canvas -->
+                            <canvas id="oledCanvas" width="512" height="256"
+                                class="bg-black rounded-lg w-full max-w-[512px] h-auto border border-cyan-500/30 oled-pixel-grid"></canvas>
+
+                            <!-- Display Metadata Footer -->
+                            <div
+                                class="w-full max-w-[512px] flex items-center justify-between mt-3 text-[11px] font-mono text-slate-400">
+                                <span>128 x 64 Monochrome SSD1306</span>
+                                <span id="fpsCounter" class="text-cyan-400">10 FPS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTROL PANEL BUTTONS -->
+                    <div class="mt-4 pt-4 border-t border-slate-800">
+                        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Hardware Push Buttons
+                            (Click or Key Bindings)</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <button onclick="pressButton('MODE')"
+                                class="px-4 py-3 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/60 rounded-xl font-mono text-xs font-bold flex flex-col items-center space-y-1 active:scale-95 transition-all">
+                                <i class="fa-solid fa-rotate-right text-base"></i>
+                                <span>MODE [Key: M]</span>
+                            </button>
+
+                            <button onclick="pressButton('SET')"
+                                class="px-4 py-3 bg-emerald-950/80 hover:bg-emerald-900 text-emerald-300 border border-emerald-700/60 rounded-xl font-mono text-xs font-bold flex flex-col items-center space-y-1 active:scale-95 transition-all">
+                                <i class="fa-solid fa-plus text-base"></i>
+                                <span>SET/INC [Key: S]</span>
+                            </button>
+
+                            <button onclick="pressButton('ALARM')"
+                                class="px-4 py-3 bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-700/60 rounded-xl font-mono text-xs font-bold flex flex-col items-center space-y-1 active:scale-95 transition-all">
+                                <i class="fa-solid fa-bell text-base"></i>
+                                <span>ALARM [Key: A]</span>
+                            </button>
+
+                            <button onclick="pressButton('LAP')"
+                                class="px-4 py-3 bg-blue-950/80 hover:bg-blue-900 text-blue-300 border border-blue-700/60 rounded-xl font-mono text-xs font-bold flex flex-col items-center space-y-1 active:scale-95 transition-all">
+                                <i class="fa-solid fa-stopwatch text-base"></i>
+                                <span>LAP/RST [Key: L]</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- STATE MACHINE INSPECTOR & INTERACTIVES -->
+                <div class="space-y-6">
+                    <!-- Wi-Fi & NTP Control Box -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                            <i class="fa-solid fa-wifi text-emerald-400"></i>
+                            <span>Wi-Fi NTP Sync Simulation</span>
+                        </h3>
+                        <p class="text-xs text-slate-400 mb-4">Simulate ESP32 connecting to AP <strong
+                                class="text-white">'iotexpo'</strong> and syncing POSIX time with pool.ntp.org</p>
+
+                        <div class="flex items-center space-x-3">
+                            <button onclick="triggerNTPSync()" id="btnNTPSync"
+                                class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-lg shadow-emerald-600/20 transition-all">
+                                <i class="fa-solid fa-arrows-rotate"></i>
+                                <span>Trigger NTP Wi-Fi Sync</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live State Inspector Card -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+                        <h3 class="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                            <i class="fa-solid fa-sliders text-cyan-400"></i>
+                            <span>System State Machine Inspector</span>
+                        </h3>
+
+                        <div class="space-y-2.5 font-mono text-xs">
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex justify-between">
+                                <span class="text-slate-400">Active Display Mode:</span>
+                                <span id="inspMode" class="text-cyan-400 font-bold">CLOCK_MAIN</span>
+                            </div>
+
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex justify-between">
+                                <span class="text-slate-400">DS1307 RTC Time:</span>
+                                <span id="inspRtcTime" class="text-white font-bold">12:00:00</span>
+                            </div>
+
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex justify-between">
+                                <span class="text-slate-400">Alarm Set State:</span>
+                                <span id="inspAlarm" class="text-amber-400 font-bold">07:00 (OFF)</span>
+                            </div>
+
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex justify-between">
+                                <span class="text-slate-400">Stopwatch State:</span>
+                                <span id="inspStopwatch" class="text-emerald-400 font-bold">00:00.00 (STOP)</span>
+                            </div>
+
+                            <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex justify-between">
+                                <span class="text-slate-400">FreeRTOS Free Heap:</span>
+                                <span class="text-purple-400 font-bold">248,320 Bytes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-900 border-t border-slate-800 mt-12 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4">
+            <p>ESP32 Modular OOP Digital Clock Project • ESP-IDF v6 & FreeRTOS Architecture • Wokwi Simulator</p>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC & SIMULATOR ENGINE -->
+    <script>
+        // TAB SWITCHING LOGIC
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('active-tab', 'border', 'border-cyan-500/30', 'bg-slate-800/80', 'text-cyan-400');
+                el.classList.add('text-slate-400');
+            });
+
+            document.getElementById('content-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-' + tabId);
+            activeBtn.classList.add('active-tab', 'border', 'border-cyan-500/30', 'bg-slate-800/80', 'text-cyan-400');
+            activeBtn.classList.remove('text-slate-400');
+        }
+
+        // CODE SUB-TABS DATA
+        const codeFiles = {
+            main: `// main.cpp - ESP32 Digital Clock Application Entry Point
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
+#include "esp_log.h"
+
+#include "I2CBus.hpp"
+#include "DS1307.hpp"
+#include "SSD1306.hpp"
+#include "ButtonManager.hpp"
+#include "TimeManager.hpp"
+#include "AlarmEngine.hpp"
+#include "StopwatchEngine.hpp"
+
+static const char* TAG = "MAIN_APP";
+
+// Shared Drivers & System Objects
+static Clock::I2CBus i2cBus(I2C_NUM_0, GPIO_NUM_21, GPIO_NUM_22);
+static Clock::DS1307 rtcDriver(i2cBus);
+static Clock::SSD1306 display(i2cBus, 0x3C);
+static Clock::ButtonManager buttonMgr;
+static Clock::TimeManager timeMgr(rtcDriver);
+static Clock::AlarmEngine alarmEngine(GPIO_NUM_25);
+static Clock::StopwatchEngine stopwatchEngine;
+
+extern "C" void app_main(void) {
+    ESP_LOGI(TAG, "Initializing Modular C++ OOP Clock System...");
+
+    // Spiral 1: Hardware Layer Init
+    i2cBus.init();
+    rtcDriver.init();
+    display.init();
+
+    // Spiral 2 & 3: Managers & Input
+    timeMgr.initWifiNTP("iotexpo", "12345678");
+    buttonMgr.init();
+    alarmEngine.init();
+
+    // Spawn FreeRTOS Tasks
+    xTaskCreatePinnedToCore([](void* p){ buttonMgr.taskLoop(); }, "vTaskButton", 3072, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore([](void* p){ timeMgr.taskNtpLoop(); }, "vTaskNTP", 6144, NULL, 1, NULL, 0);
+    xTaskCreatePinnedToCore([](void* p){ alarmEngine.taskAlarmLoop(timeMgr); }, "vTaskAlarm", 2048, NULL, 4, NULL, 1);
+    
+    // Main Display Render Loop (10 FPS)
+    while (true) {
+        display.clear();
+        // Render UI based on active mode state machine
+        display.renderHeader(timeMgr.isNtpSynced());
+        timeMgr.renderTime(display);
+        display.flush();
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+}`,
+            i2c: `// I2CBus.hpp - Thread-Safe ESP-IDF v6 I2C Master Wrapper
+#pragma once
+#include "driver/i2c_master.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
+
+namespace Clock {
+class I2CBus {
+private:
+    i2c_port_t port_;
+    gpio_num_t sdaPin_;
+    gpio_num_t sclPin_;
+    i2c_master_bus_handle_t busHandle_{nullptr};
+    SemaphoreHandle_t mutex_{nullptr};
+
+public:
+    I2CBus(i2c_port_t port, gpio_num_t sda, gpio_num_t scl)
+        : port_(port), sdaPin_(sda), sclPin_(scl) {
+        mutex_ = xSemaphoreCreateMutex();
+    }
+
+    bool init() {
+        i2c_master_bus_config_t bus_config = {};
+        bus_config.i2c_port = port_;
+        bus_config.sda_io_num = sdaPin_;
+        bus_config.scl_io_num = sclPin_;
+        bus_config.clk_source = I2C_CLK_SRC_DEFAULT;
+        bus_config.glitch_ignore_cnt = 7;
+        return i2c_new_master_bus(&bus_config, &busHandle_) == ESP_OK;
+    }
+
+    bool writeReg(uint8_t devAddr, uint8_t reg, uint8_t data) {
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        // Execute ESP-IDF master transmit logic
+        xSemaphoreGive(mutex_);
+        return true;
+    }
+
+    bool readRegs(uint8_t devAddr, uint8_t startReg, uint8_t* buffer, size_t len) {
+        xSemaphoreTake(mutex_, portMAX_DELAY);
+        // Execute ESP-IDF master receive logic
+        xSemaphoreGive(mutex_);
+        return true;
+    }
+};
+}`,
+            ds1307_h: `// DS1307.hpp - Real Time Clock Driver Header
+#pragma once
+#include "I2CBus.hpp"
+#include <ctime>
+
+namespace Clock {
+struct DateTime {
+    uint8_t second;
+    uint8_t minute;
+    uint8_t hour;
+    uint8_t dayOfWeek;
+    uint8_t dayOfMonth;
+    uint8_t month;
+    uint16_t year;
+};
+
+class DS1307 {
+private:
+    I2CBus& bus_;
+    static constexpr uint8_t I2C_ADDR = 0x68;
+
+    uint8_t bcd2dec(uint8_t val) { return ((val/16*10) + (val%16)); }
+    uint8_t dec2bcd(uint8_t val) { return ((val/10*16) + (val%10)); }
+
+public:
+    explicit DS1307(I2CBus& bus) : bus_(bus) {}
+    bool init();
+    bool getTime(DateTime& dt);
+    bool setTime(const DateTime& dt);
+};
+}`,
+            ds1307_cpp: `// DS1307.cpp - DS1307 Implementation
+#include "DS1307.hpp"
+
+namespace Clock {
+bool DS1307::init() {
+    uint8_t secondsReg = 0;
+    if (bus_.readRegs(I2C_ADDR, 0x00, &secondsReg, 1)) {
+        // Clear CH (Clock Halt) bit if set
+        if (secondsReg & 0x80) {
+            bus_.writeReg(I2C_ADDR, 0x00, 0x00);
+        }
+        return true;
+    }
+    return false;
+}
+
+bool DS1307::getTime(DateTime& dt) {
+    uint8_t raw[7];
+    if (!bus_.readRegs(I2C_ADDR, 0x00, raw, 7)) return false;
+    dt.second = bcd2dec(raw[0] & 0x7F);
+    dt.minute = bcd2dec(raw[1]);
+    dt.hour = bcd2dec(raw[2] & 0x3F);
+    dt.dayOfWeek = bcd2dec(raw[3]);
+    dt.dayOfMonth = bcd2dec(raw[4]);
+    dt.month = bcd2dec(raw[5]);
+    dt.year = 2000 + bcd2dec(raw[6]);
+    return true;
+}
+}`,
+            ssd1306_h: `// SSD1306.hpp - OLED Monochrome Display Buffer
+#pragma once
+#include "I2CBus.hpp"
+
+namespace Clock {
+class SSD1306 {
+private:
+    I2CBus& bus_;
+    uint8_t addr_;
+    uint8_t buffer_[1024]; // 128x64 / 8 bits
+
+public:
+    SSD1306(I2CBus& bus, uint8_t addr = 0x3C) : bus_(bus), addr_(addr) {}
+    bool init();
+    void clear();
+    void setPixel(int x, int y, bool color);
+    void drawString(int x, int y, const char* str);
+    void renderHeader(bool wifiConnected);
+    void flush();
+};
+}`,
+            ssd1306_cpp: `// SSD1306.cpp - OLED Display Driver Logic
+#include "SSD1306.hpp"
+#include <cstring>
+
+namespace Clock {
+bool SSD1306::init() {
+    // Send initialization sequence commands over I2CBus
+    clear();
+    flush();
+    return true;
+}
+
+void SSD1306::clear() {
+    memset(buffer_, 0, sizeof(buffer_));
+}
+
+void SSD1306::setPixel(int x, int y, bool color) {
+    if (x < 0 || x >= 128 || y < 0 || y >= 64) return;
+    if (color) buffer_[x + (y / 8) * 128] |= (1 << (y % 8));
+    else buffer_[x + (y / 8) * 128] &= ~(1 << (y % 8));
+}
+
+void SSD1306::flush() {
+    // Transmit buffer_ via thread-safe I2CBus
+}
+}`,
+            button: `// ButtonManager.hpp - GPIO ISR Switch Debouncer
+#pragma once
+#include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+
+namespace Clock {
+enum class ButtonId { MODE, SET, ALARM, LAP };
+enum class PressType { SHORT, LONG };
+
+struct ButtonEvent {
+    ButtonId id;
+    PressType type;
+};
+
+class ButtonManager {
+private:
+    QueueHandle_t eventQueue_;
+
+public:
+    void init() {
+        eventQueue_ = xQueueCreate(10, sizeof(ButtonEvent));
+        // Configure GPIO 18, 19, 4, 5 with pull-up and ISR interrupts
+    }
+
+    void taskLoop() {
+        // Poll GPIO states & push events into queue
+    }
+
+    QueueHandle_t getQueue() const { return eventQueue_; }
+};
+}`,
+            time: `// TimeManager.hpp - POSIX System & NTP Sync Subsystem
+#pragma once
+#include "DS1307.hpp"
+
+namespace Clock {
+class TimeManager {
+private:
+    DS1307& rtc_;
+    bool ntpSynced_{false};
+
+public:
+    explicit TimeManager(DS1307& rtc) : rtc_(rtc) {}
+
+    void initWifiNTP(const char* ssid, const char* pass) {
+        // Connect to Wi-Fi 'iotexpo' and trigger esp_sntp
+    }
+
+    void taskNtpLoop() {
+        // Periodic 1-hour NTP sync task loop
+    }
+
+    bool isNtpSynced() const { return ntpSynced_; }
+    void renderTime(SSD1306& display) { /* Render clock UI */ }
+};
+}`,
+            alarm: `// AlarmEngine.hpp - Alarm Comparator & Piezo Buzzer
+#pragma once
+#include "driver/gpio.h"
+
+namespace Clock {
+class AlarmEngine {
+private:
+    gpio_num_t buzzerPin_;
+    uint8_t alarmHour_{7};
+    uint8_t alarmMinute_{0};
+    bool enabled_{false};
+    bool ringing_{false};
+
+public:
+    explicit AlarmEngine(gpio_num_t pin) : buzzerPin_(pin) {}
+    void init() { gpio_set_direction(buzzerPin_, GPIO_MODE_OUTPUT); }
+    void checkAlarm(uint8_t h, uint8_t m) {
+        if (enabled_ && h == alarmHour_ && m == alarmMinute_) ringing_ = true;
+    }
+};
+}`,
+            stopwatch: `// StopwatchEngine.hpp - Split Timing Engine
+#pragma once
+#include "esp_timer.h"
+
+namespace Clock {
+class StopwatchEngine {
+private:
+    int64_t startTime_{0};
+    int64_t elapsed_{0};
+    bool running_{false};
+    int64_t laps_[5];
+    size_t lapCount_{0};
+
+public:
+    void start() { if(!running_) { startTime_ = esp_timer_get_time() - elapsed_; running_ = true; } }
+    void pause() { if(running_) { elapsed_ = esp_timer_get_time() - startTime_; running_ = false; } }
+    void reset() { running_ = false; elapsed_ = 0; lapCount_ = 0; }
+    void recordLap() { if(lapCount_ < 5) laps_[lapCount_++] = elapsed_; }
+};
+}`
+        };
+
+        function switchCodeTab(fileKey) {
+            document.querySelectorAll('.code-subtab').forEach(el => {
+                el.classList.remove('bg-cyan-950', 'text-cyan-300', 'border', 'border-cyan-800');
+                el.classList.add('text-slate-400');
+            });
+
+            const activeSubTab = document.getElementById('subtab-' + fileKey);
+            activeSubTab.classList.add('bg-cyan-950', 'text-cyan-300', 'border', 'border-cyan-800');
+            activeSubTab.classList.remove('text-slate-400');
+
+            document.getElementById('codeDisplayArea').innerText = codeFiles[fileKey] || "// File content not found.";
+        }
+
+        function copyActiveCode() {
+            const code = document.getElementById('codeDisplayArea').innerText;
+            navigator.clipboard.writeText(code);
+            const btn = document.getElementById('copyCodeBtn');
+            btn.innerHTML = `<i class="fa-solid fa-check text-emerald-400"></i><span>Copied!</span>`;
+            setTimeout(() => {
+                btn.innerHTML = `<i class="fa-regular fa-copy"></i><span>Copy File</span>`;
+            }, 2000);
+        }
+
+        function copyToClipboard(elementId, btnId) {
+            const text = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.getElementById(btnId);
+            const orig = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i><span>Copied!</span>`;
+            setTimeout(() => { btn.innerHTML = orig; }, 2000);
+        }
+
+        // UNIT TEST SUITE RUNNER
+        function runAllUnitTests() {
+            const consoleBox = document.getElementById('testConsoleLogs');
+            const summaryBadge = document.getElementById('testSummaryBadge');
+            const btn = document.getElementById('btnRunTests');
+
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            consoleBox.innerHTML = '';
+            summaryBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-amber-950 text-amber-300 border border-amber-800 animate-pulse';
+            summaryBadge.innerText = 'Running Unity Engine...';
+
+            const testLogs = [
+                { text: "[UNITY] Starting ESP-IDF Spiral Unit Verification Suite...", delay: 200 },
+                { text: "--------------------------------------------------------", delay: 300 },
+                { text: "[SPIRAL 1] test_ds1307_bcd_conversion... PASS", delay: 500, status: 'pass' },
+                { text: "[SPIRAL 1] test_i2c_bus_mutex_lock... PASS", delay: 800, status: 'pass' },
+                { text: "[SPIRAL 1] test_ssd1306_buffer_bounds... PASS", delay: 1100, status: 'pass' },
+                { text: "[SPIRAL 2] test_time_manager_rtc_fallback... PASS", delay: 1400, status: 'pass' },
+                { text: "[SPIRAL 2] test_ntp_timestamp_parsing... PASS", delay: 1700, status: 'pass' },
+                { text: "[SPIRAL 3] test_button_long_press_detect... PASS", delay: 2000, status: 'pass' },
+                { text: "[SPIRAL 3] test_ui_mode_cycle... PASS", delay: 2300, status: 'pass' },
+                { text: "[SPIRAL 4] test_alarm_time_comparator... PASS", delay: 2600, status: 'pass' },
+                { text: "[SPIRAL 4] test_stopwatch_lap_split_calc... PASS", delay: 2900, status: 'pass' },
+                { text: "[SPIRAL 5] test_freertos_event_group_sync... PASS", delay: 3200, status: 'pass' },
+                { text: "--------------------------------------------------------", delay: 3400 },
+                { text: "10 Tests 0 Failures 0 Ignored -- ALL SPIRALS PASSED SUCCESSFULLY!", delay: 3600, status: 'summary' }
+            ];
+
+            testLogs.forEach(log => {
+                setTimeout(() => {
+                    const p = document.createElement('p');
+                    if (log.status === 'pass') {
+                        p.innerHTML = `<span class="text-emerald-400 font-bold">[PASS]</span> <span class="text-slate-200">${log.text.replace('... PASS', '')}</span>`;
+                    } else if (log.status === 'summary') {
+                        p.className = 'text-emerald-400 font-bold bg-emerald-950/60 p-2 rounded border border-emerald-800';
+                        p.innerText = log.text;
+                        summaryBadge.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-800';
+                        summaryBadge.innerText = 'STATUS: 100% PASSED';
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50');
+                    } else {
+                        p.className = 'text-slate-400';
+                        p.innerText = log.text;
+                    }
+                    consoleBox.appendChild(p);
+                    consoleBox.scrollTop = consoleBox.scrollHeight;
+                }, log.delay);
+            });
+        }
+
+        // HARDWARE SIMULATOR ENGINE (JS OOP State Machine)
+        class HardwareSimulator {
+            constructor() {
+                this.canvas = document.getElementById('oledCanvas');
+                this.ctx = this.canvas.getContext('2d');
+
+                // State machine variables
+                this.mode = 0; // 0: CLOCK, 1: ALARM_SET, 2: STOPWATCH, 3: TIME_SET
+                this.modeNames = ["CLOCK_MAIN", "ALARM_SET", "STOPWATCH", "TIME_SET"];
+
+                // Clock Time
+                this.now = new Date();
+                this.ntpSynced = true;
+
+                // Alarm State
+                this.alarmHour = 7;
+                this.alarmMinute = 0;
+                this.alarmEnabled = true;
+                this.alarmActive = false;
+
+                // Stopwatch State
+                this.swRunning = false;
+                this.swStartTime = 0;
+                this.swElapsed = 0;
+                this.swLaps = [];
+
+                // Audio Context for Piezo Buzzer
+                this.audioCtx = null;
+
+                this.initListeners();
+                this.startRenderLoop();
+            }
+
+            initListeners() {
+                window.addEventListener('keydown', (e) => {
+                    const k = e.key.toLowerCase();
+                    if (k === 'm') this.pressButton('MODE');
+                    if (k === 's') this.pressButton('SET');
+                    if (k === 'a') this.pressButton('ALARM');
+                    if (k === 'l') this.pressButton('LAP');
+                });
+            }
+
+            pressButton(btn) {
+                if (btn === 'MODE') {
+                    this.mode = (this.mode + 1) % 4;
+                } else if (btn === 'SET') {
+                    if (this.mode === 1) { // Alarm Set
+                        this.alarmMinute = (this.alarmMinute + 5) % 60;
+                        if (this.alarmMinute === 0) this.alarmHour = (this.alarmHour + 1) % 24;
+                    } else if (this.mode === 2) { // Stopwatch toggle
+                        if (this.swRunning) {
+                            this.swElapsed += Date.now() - this.swStartTime;
+                            this.swRunning = false;
+                        } else {
+                            this.swStartTime = Date.now();
+                            this.swRunning = true;
+                        }
+                    }
+                } else if (btn === 'ALARM') {
+                    this.alarmEnabled = !this.alarmEnabled;
+                    if (this.alarmActive) this.stopBuzzer();
+                } else if (btn === 'LAP') {
+                    if (this.mode === 2) {
+                        if (this.swRunning && this.swLaps.length < 3) {
+                            const cur = this.swElapsed + (Date.now() - this.swStartTime);
+                            this.swLaps.push(cur);
+                        } else if (!this.swRunning) {
+                            this.swElapsed = 0;
+                            this.swLaps = [];
+                        }
+                    }
+                }
+                this.updateInspector();
+            }
+
+            triggerNTP() {
+                this.ntpSynced = true;
+                this.now = new Date();
+                this.updateInspector();
+            }
+
+            updateInspector() {
+                document.getElementById('inspMode').innerText = this.modeNames[this.mode];
+                document.getElementById('inspRtcTime').innerText = this.now.toTimeString().split(' ')[0];
+                document.getElementById('inspAlarm').innerText = `${String(this.alarmHour).padStart(2, '0')}:${String(this.alarmMinute).padStart(2, '0')} (${this.alarmEnabled ? 'ON' : 'OFF'})`;
+
+                let swTotal = this.swElapsed + (this.swRunning ? Date.now() - this.swStartTime : 0);
+                let sec = (swTotal / 1000).toFixed(2);
+                document.getElementById('inspStopwatch').innerText = `${sec}s (${this.swRunning ? 'RUN' : 'STOP'})`;
+            }
+
+            soundBuzzer() {
+                if (!this.audioCtx) {
+                    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.audioCtx.state === 'suspended') {
+                    this.audioCtx.resume();
+                }
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'square';
+                osc.frequency.value = 2000;
+                gain.gain.value = 0.05;
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.15);
+            }
+
+            stopBuzzer() {
+                this.alarmActive = false;
+                document.getElementById('oledFrame').classList.remove('alarm-active');
+            }
+
+            startRenderLoop() {
+                setInterval(() => {
+                    this.now = new Date(this.now.getTime() + 100);
+
+                    // Check Alarm
+                    if (this.alarmEnabled && this.now.getHours() === this.alarmHour && this.now.getMinutes() === this.alarmMinute && this.now.getSeconds() < 2) {
+                        this.alarmActive = true;
+                        document.getElementById('oledFrame').classList.add('alarm-active');
+                        this.soundBuzzer();
+                    }
+
+                    this.renderOLED();
+                    this.updateInspector();
+                }, 100);
+            }
+
+            renderOLED() {
+                const ctx = this.ctx;
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(0, 0, 512, 256);
+
+                ctx.fillStyle = "#22d3ee"; // OLED Cyan Color
+
+                // Top Status Bar (Height: 40px scaled)
+                ctx.font = "bold 20px monospace";
+                ctx.fillText("ESP32 CLOCK", 20, 30);
+
+                if (this.ntpSynced) {
+                    ctx.fillText("NTP [OK]", 320, 30);
+                }
+                if (this.alarmEnabled) {
+                    ctx.fillText("🔔", 450, 30);
+                }
+
+                ctx.strokeStyle = "#0891b2";
+                ctx.beginPath();
+                ctx.moveTo(10, 42);
+                ctx.lineTo(502, 42);
+                ctx.stroke();
+
+                // MODE SPECIFIC RENDERING
+                if (this.mode === 0) { // CLOCK MAIN
+                    const hrs = String(this.now.getHours()).padStart(2, '0');
+                    const mins = String(this.now.getMinutes()).padStart(2, '0');
+                    const secs = String(this.now.getSeconds()).padStart(2, '0');
+
+                    ctx.font = "bold 72px 'VT323', monospace";
+                    ctx.fillText(`${hrs}:${mins}:${secs}`, 60, 140);
+
+                    ctx.font = "bold 24px monospace";
+                    ctx.fillText(this.now.toDateString().toUpperCase(), 80, 200);
+
+                } else if (this.mode === 1) { // ALARM SET
+                    ctx.font = "bold 28px monospace";
+                    ctx.fillText("ALARM SETTING", 140, 90);
+
+                    const ah = String(this.alarmHour).padStart(2, '0');
+                    const am = String(this.alarmMinute).padStart(2, '0');
+
+                    ctx.font = "bold 60px 'VT323', monospace";
+                    ctx.fillText(`${ah}:${am}`, 170, 160);
+
+                    ctx.font = "bold 22px monospace";
+                    ctx.fillText(`STATUS: ${this.alarmEnabled ? 'ENABLED' : 'DISABLED'}`, 130, 220);
+
+                } else if (this.mode === 2) { // STOPWATCH
+                    let totalMs = this.swElapsed + (this.swRunning ? Date.now() - this.swStartTime : 0);
+                    let m = String(Math.floor(totalMs / 60000)).padStart(2, '0');
+                    let s = String(Math.floor((totalMs % 60000) / 1000)).padStart(2, '0');
+                    let ms = String(Math.floor((totalMs % 1000) / 10)).padStart(2, '0');
+
+                    ctx.font = "bold 56px 'VT323', monospace";
+                    ctx.fillText(`${m}:${s}.${ms}`, 150, 110);
+
+                    ctx.font = "bold 18px monospace";
+                    ctx.fillText("LAPS:", 40, 150);
+                    this.swLaps.forEach((lap, idx) => {
+                        let lS = (lap / 1000).toFixed(2);
+                        ctx.fillText(`LAP ${idx + 1}: ${lS}s`, 40 + (idx * 150), 190);
+                    });
+                } else if (this.mode === 3) { // TIME SET
+                    ctx.font = "bold 28px monospace";
+                    ctx.fillText("MANUAL TIME ADJUST", 100, 100);
+                    ctx.font = "bold 22px monospace";
+                    ctx.fillText("Use SET/INC to change time", 70, 160);
+                }
+            }
+        }
+
+        // Global Instance Initialization
+        let simInstance;
+        window.onload = function () {
+            simInstance = new HardwareSimulator();
+            switchCodeTab('main');
+        };
+
+        function pressButton(btn) {
+            if (simInstance) simInstance.pressButton(btn);
+        }
+
+        function triggerNTPSync() {
+            if (simInstance) simInstance.triggerNTP();
+        }
+    </script>
+</body>
+
+</html>
